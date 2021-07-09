@@ -1,4 +1,6 @@
 const headerCityButton = document.querySelector('.header__city-button')
+const cartListGoods = document.querySelector('.cart__list-goods')
+const cartTotalCost = document.querySelector('.cart__total-cost')
 
 let hash = location.hash.substring(1) // определяем хешь страницы (значение после # в конце ссылки на страницу) и сразу обрезаем первый его элемент (#)
 
@@ -11,6 +13,50 @@ headerCityButton.addEventListener('click', () => {
     if(city) {
         headerCityButton.textContent = city
         localStorage.setItem('lamoda-location', city)
+    }
+})
+
+const getLocalStorage = () => JSON?.parse(localStorage.getItem('cart-lomoda')) || [] // "?" оператор нового синтаксиса, позволяет искать в объекте свойства которых там может не быть, без выбрасывания ошибки, а результат будет undefined
+
+const setLocalStorage = (data) => localStorage.setItem('cart-lomoda', JSON.stringify(data))
+
+const renderCart = () => {
+    cartListGoods.textContent = ''
+
+    const cartItems = getLocalStorage()
+
+    let totalPrice = 0
+
+    cartItems.forEach((item, i) => {
+
+        const tr = document.createElement('tr')
+
+        tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${item.brand} ${item.name}</td>
+            ${item.color ? `<td>${item.color}</td>` : '<td>-</td>'}
+            ${item.size ? `<td>${item.size}</td>` : '<td>-</td>'}
+            <td>${item.cost} &#8381;</td>
+            <td><button class="btn-delete" data-id="${item.id}">&times;</button></td>
+            `    
+            totalPrice += item.cost
+
+            cartListGoods.append(tr)
+    })
+
+    cartTotalCost.textContent = totalPrice + ' ₽'
+}
+
+const deleteItemCart = (id) => {
+    const cartItems = getLocalStorage()
+    const newCartItems = cartItems.filter(item => item.id !== id)
+    setLocalStorage(newCartItems)
+}
+
+cartListGoods.addEventListener('click', (event) => {
+    if(event.target.classList.contains('btn-delete')) {
+        deleteItemCart(event.target.dataset.id)
+        renderCart()
     }
 })
 
@@ -54,6 +100,7 @@ const cartOverlay = document.querySelector('.cart-overlay')
 subheaderCart.addEventListener('click', () => {
     cartOverlay.classList.add('cart-overlay-open')
     disableScroll()
+    renderCart()
 })
 
 subheaderCart.addEventListener('keydown', (event) => {
@@ -93,7 +140,6 @@ const getGoods = (callback, prop, value) => {
         })
             .catch(err =>console.error(err))
 }
-
 
 // если на странице нет селектора с классом ".goods__list", то попадаем в блок catch через выполнение throw (способ узнать на какой мы странице)
 // Страница категорий товаров
@@ -195,7 +241,10 @@ try {
     }, '')
         
 
-    const renderCardGood = ([{brand, name, cost, color, sizes, photo}]) => { // деструкраризация (data.brand и т.д)
+    const renderCardGood = ([{id, brand, name, cost, color, sizes, photo}]) => { // деструкраризация (data.brand и т.д)
+
+        const data = {brand, name, cost, id}
+
         cardGoodImage.src = `goods-image/${photo}`
         cardGoodImage.alt = `${brand} ${name}`
         cardGoodBrand.textContent = brand
@@ -216,6 +265,29 @@ try {
             cardGoodSizes.style.display = 'none'
         }
         
+        if(getLocalStorage().some(item => item.id === id)) {
+            cardGoodBuy.classList.add('delete')
+            cardGoodBuy.textContent = 'Удалить из корзины'
+        }
+
+        cardGoodBuy.addEventListener('click', () => {
+            if(cardGoodBuy.classList.contains('delete')) {
+                deleteItemCart(id)
+                cardGoodBuy.classList.remove('delete')
+                cardGoodBuy.textContent = 'Добавить в корзину'
+                return
+            }
+
+            if(color) data.color = cardGoodColor.textContent
+            if(sizes) data.size = cardGoodSizes.textContent
+
+            cardGoodBuy.classList.add('delete')
+            cardGoodBuy.textContent = 'Удалить из корзины'
+
+            const cardData = getLocalStorage()
+            cardData.push(data)
+            setLocalStorage(cardData)
+        })
     }
 
     cardGoodSelectWrapper.forEach(item => {
@@ -234,6 +306,7 @@ try {
             }
         })
     })
+
 
     getGoods(renderCardGood, 'id', hash)
     
